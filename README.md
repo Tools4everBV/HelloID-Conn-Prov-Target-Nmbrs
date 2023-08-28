@@ -74,7 +74,7 @@ Some fields are mandatory to provide to the NMBRS api to perform updates. The va
 ## Getting help
 > _For more information on how to configure a HelloID PowerShell connector, please refer to our [documentation](https://docs.helloid.com/hc/en-us/articles/360012518799-How-to-add-a-target-system) pages_
 
-> _If you need help, feel free to ask questions on our [TODO-forum](https://forum.helloid.com/forum/helloid-connectors/provisioning/0000-helloid-provisioning-helloid-conn-prov-target-nmbrs)_
+> _If you need help, feel free to ask questions on our [forum](https://forum.helloid.com/forum/helloid-connectors/provisioning/4928-helloid-conn-prov-target-nmbrs)_
 
 ## HelloID Docs
 The official HelloID documentation can be found at: https://docs.helloid.com/
