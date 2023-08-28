@@ -30,7 +30,8 @@ $correlationValue = $p.externalId # Has to match the value of the unique identif
 
 # Change mapping here - Empty as we delete the account
 $account = [PSCustomObject]@{
-    Id  = $p.ExternalId    
+    Id  = $p.ExternalId
+    EmailWork = "" #$p.Contact.Personal.Email
 }
 
 # Define account properties as required - Empty as we delete the account
@@ -286,7 +287,7 @@ try {
     }
 
     
-    # Get current account and verify if there are changes
+    # Get current account to fill mandatory fields
     try {
         Write-Verbose "Querying account where [$($correlationProperty)] = [$($correlationValue)]"
 
@@ -336,7 +337,7 @@ try {
             Number         = $currentAccount.Number         #Mandatory Field within Set-CurrentPerson
             EmployeeNumber = $currentAccount.EmployeeNumber #Mandatory Field within Set-CurrentPerson
             LastName       = $currentAccount.LastName       #Mandatory Field within Set-CurrentPerson
-            EmailWork      = ""                             #Field to clear
+            EmailWork      = $account.EmailWork                             #Field to clear
             Birthday       = $currentAccount.Birthday       #Mandatory Field within Set-CurrentPerson
         }
 
