@@ -1,7 +1,7 @@
 #####################################################
 # HelloID-Conn-Prov-Target-Nmbrs-Delete
 #
-# Version: 1.0.0
+# Version: 1.0.1
 #####################################################
 # Initialize default values
 $c = $configuration | ConvertFrom-Json
@@ -157,7 +157,7 @@ function Invoke-NMBRSRestMethod {
         Invoke-RestMethod @splatParams -Verbose:$false
     }
     catch {
-        $PSCmdlet.ThrowTerminatingError($_)
+        throw $_
     }
 }
 
