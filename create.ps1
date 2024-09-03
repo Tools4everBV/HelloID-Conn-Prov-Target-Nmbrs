@@ -1,50 +1,21 @@
-#####################################################
+#################################################
 # HelloID-Conn-Prov-Target-Nmbrs-Create
-#
-# Version: 1.0.0
-#####################################################
-# Initialize default values
-$c = $configuration | ConvertFrom-Json
-$p = $person | ConvertFrom-Json
-$success = $false # Set to false at start, at the end, only when no error occurs it is set to true
-$auditLogs = [System.Collections.Generic.List[PSCustomObject]]::new()
+# PowerShell V2
+#################################################
 
-# Set TLS to accept TLS, TLS 1.1 and TLS 1.2
-[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls -bor [Net.SecurityProtocolType]::Tls11 -bor [Net.SecurityProtocolType]::Tls12
+# Enable TLS1.2
+[System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor [System.Net.SecurityProtocolType]::Tls12
 
+#region functions
 # Set debug logging
-switch ($($c.isDebug)) {
+switch ($($actionContext.Configuration.isDebug)) {
     $true { $VerbosePreference = "Continue" }
     $false { $VerbosePreference = "SilentlyContinue" }
 }
 $InformationPreference = "Continue"
 $WarningPreference = "Continue"
 
-# Define configuration properties as required
-$requiredConfigurationFields = @("BaseUrl", "UserName", "Token", "Domain", "version")
-
-# Correlation values
-$correlationProperty = "Id" # Has to match the name of the unique identifier
-$correlationValue = $p.externalId # Has to match the value of the unique identifier
-
-# Change mapping here
-$account = [PSCustomObject]@{
-    Id  = $p.ExternalId
-    DisplayName = $p.DisplayName
-    EmailWork   = $p.Accounts.MicrosoftActiveDirectory.Mail        
-}
-
-# Define account properties as required
-$requiredAccountFields = @("Id", "EmailWork")
-
-# Define account properties to update
-$updateAccountFields = @("EmailWork")
-
-# Define account properties to store in account data
-$storeAccountFields = @("Id", "EmployeeNumber", "EmailWork")
-
-#region functions
-function Resolve-HTTPError {
+function Resolve-NmbrsError {
     [CmdletBinding()]
     param (
         [Parameter(Mandatory,
@@ -85,7 +56,7 @@ function Get-ErrorMessage {
         }
 
         if ( $($ErrorObject.Exception.GetType().FullName -eq "Microsoft.PowerShell.Commands.HttpResponseException") -or $($ErrorObject.Exception.GetType().FullName -eq "System.Net.WebException")) {
-            $httpErrorObject = Resolve-HTTPError -Error $ErrorObject
+            $httpErrorObject = Resolve-NmbrsError -Error $ErrorObject
 
             $errorMessage.VerboseErrorMessage = $httpErrorObject.ErrorMessage
 
@@ -124,15 +95,15 @@ function Invoke-NMBRSRestMethod {
         'EmployeeService' {
             $soapHeader = "
             <emp:AuthHeaderWithDomain>
-                <emp:Username>$($c.UserName)</emp:Username>
-                <emp:Token>$($c.Token)</emp:Token>
-                <emp:Domain>$($c.Domain)</emp:Domain>
+            <emp:Username>$($actionContext.Configuration.UserName)</emp:Username>
+            <emp:Token>$($actionContext.Configuration.Token)</emp:Token>
+            <emp:Domain>$($actionContext.Configuration.Domain)</emp:Domain>
             </emp:AuthHeaderWithDomain>"
         }
     }
 
     $xmlRequest = "<?xml version=`"1.0`" encoding=`"utf-8`"?>
-        <soap:Envelope xmlns:soap= `"http://www.w3.org/2003/05/soap-envelope`" xmlns:emp=`"https://api.nmbrs.nl/soap/$($c.version)/$service`">
+    <soap:Envelope xmlns:soap = `"http://www.w3.org/2003/05/soap-envelope`" xmlns:emp=`"https://api.nmbrs.nl/soap/$($actionContext.Configuration.version)/$service`">
         <soap:Header>
             $soapHeader
         </soap:Header>
@@ -149,12 +120,11 @@ function Invoke-NMBRSRestMethod {
             ContentType = 'text/xml; charset=utf-8'
         }
 
-        if (-not  [string]::IsNullOrEmpty($c.ProxyAddress)) {
-            $splatParams['Proxy'] = $c.ProxyAddress
+        if (-not  [string]::IsNullOrEmpty($actionContext.Configuration.ProxyAddress)) {
+            $splatParams['Proxy'] = $actionContext.Configuration.ProxyAddress
 
-        }
-        #Invoke-WebRequest @splatParams
-        Invoke-RestMethod @splatParams -Verbose:$false
+        }        
+        Invoke-RestMethod @splatParams -Verbose: $false
     }
     catch {
         $PSCmdlet.ThrowTerminatingError($_)
@@ -170,9 +140,9 @@ function Get-CurrentPersonalInfo {
     )
 
     $splatParams = @{
-        Uri      = "$($c.BaseUrl)/soap/$($c.version)/EmployeeService.asmx"
+        Uri      = "$($actionContext.Configuration.BaseUrl)/soap/$($actionContext.Configuration.version)/EmployeeService.asmx"
         Service  = 'EmployeeService'
-        SoapBody = "<emp:PersonalInfo_GetCurrent xmlns=`"https://api.nmbrs.nl/soap/$($c.version)/EmployeeService`">
+        SoapBody = "<emp:PersonalInfo_GetCurrent xmlns=`"https://api.nmbrs.nl/soap/$($actionContext.Configuration.version)/EmployeeService`">
             <emp:EmployeeId>$EmployeeId</emp:EmployeeId>
             </emp:PersonalInfo_GetCurrent>"
     }
@@ -184,10 +154,9 @@ function Get-CurrentPersonalInfo {
         $ex = $PSItem
         $errorMessage = Get-ErrorMessage -ErrorObject $ex
 
-        Write-Verbose "Error at Line [$($ex.InvocationInfo.ScriptLineNumber)]: $($ex.InvocationInfo.Line). Error: $($errorMessage.VerboseErrorMessage) [$($ex.ErrorDetails.Message)]"
+        Write-Error "Error at Line [$($ex.InvocationInfo.ScriptLineNumber)]: $($ex.InvocationInfo.Line). Error: $($errorMessage.VerboseErrorMessage) [$($ex.ErrorDetails.Message)]"
                 
-        $auditLogs.Add([PSCustomObject]@{
-                # Action  = "" # Optional
+        $outputContext.AuditLogs.Add([PSCustomObject]@{
                 Message = "Error updating account [$($account.DisplayName) ($($currentAccount.Id))]. Error Message: $($errorMessage.AuditErrorMessage). Account object: $($updateAccountObject | ConvertTo-Json -Depth 10)"
                 IsError = $true
             })
@@ -208,9 +177,9 @@ function Set-CurrentPersonalInfo {
     )
 
     $splatParams = @{
-        Uri      = "$($c.BaseUrl)/soap/$($c.version)/EmployeeService.asmx"
+        Uri      = "$($actionContext.Configuration.BaseUrl)/soap/$($actionContext.Configuration.version)/EmployeeService.asmx"
         Service  = 'EmployeeService'
-        SoapBody = "<emp:PersonalInfo_UpdateCurrent xmlns=`"https://api.nmbrs.nl/soap/$($c.version)/EmployeeService`">
+        SoapBody = "<emp:PersonalInfo_UpdateCurrent xmlns=`"https://api.nmbrs.nl/soap/$($actionContext.Configuration.version)/EmployeeService`">
             <emp:EmployeeId>$EmployeeId</emp:EmployeeId>
             <emp:PersonalInfo>$EmployeeBody</emp:PersonalInfo>
             </emp:PersonalInfo_UpdateCurrent>"
@@ -224,10 +193,9 @@ function Set-CurrentPersonalInfo {
         $ex = $PSItem
         $errorMessage = Get-ErrorMessage -ErrorObject $ex
 
-        Write-Verbose "Error at Line [$($ex.InvocationInfo.ScriptLineNumber)]: $($ex.InvocationInfo.Line). Error: $($errorMessage.VerboseErrorMessage) [$($ex.ErrorDetails.Message)]"
+        Write-Error "Error at Line [$($ex.InvocationInfo.ScriptLineNumber)]: $($ex.InvocationInfo.Line). Error: $($errorMessage.VerboseErrorMessage) [$($ex.ErrorDetails.Message)]"
                 
-        $auditLogs.Add([PSCustomObject]@{
-                # Action  = "" # Optional
+        $outputContext.AuditLogs.Add([PSCustomObject]@{
                 Message = "Error updating account [$($account.DisplayName) ($($currentAccount.Id))]. Error Message: $($errorMessage.AuditErrorMessage). Account object: $($updateAccountObject | ConvertTo-Json -Depth 10)"
                 IsError = $true
             })
@@ -235,286 +203,82 @@ function Set-CurrentPersonalInfo {
     }
 }
 
-#endregion functions
+#endregion
 
 try {
-    # Check if required fields are available in configuration object
-    $incompleteConfiguration = $false
-    foreach ($requiredConfigurationField in $requiredConfigurationFields) {
-        if ($requiredConfigurationField -notin $c.PsObject.Properties.Name) {
-            $incompleteConfiguration = $true
-            Write-Warning "Required configuration object field [$requiredConfigurationField] is missing"
+    # Initial Assignments
+    $outputContext.AccountReference = 'Currently not available'
+
+    # Validate correlation configuration
+    if ($actionContext.CorrelationConfiguration.Enabled) {
+        $correlationField = $actionContext.CorrelationConfiguration.accountField
+        $correlationValue = $actionContext.CorrelationConfiguration.accountFieldValue
+
+        if ([string]::IsNullOrEmpty($($correlationField))) {
+            throw 'Correlation is enabled but not configured correctly'
         }
-        elseif ([String]::IsNullOrEmpty($c.$requiredConfigurationField)) {
-            $incompleteConfiguration = $true
-            Write-Warning "Required configuration object field [$requiredConfigurationField] has a null or empty value"
+        if ([string]::IsNullOrEmpty($($correlationValue))) {
+            throw 'Correlation is enabled but [accountFieldValue] is empty. Please make sure it is correctly mapped'
         }
+
+        # Determine if a user needs to be [created] or [correlated]
+        Write-Information "Querying account where [$($correlationField)] = [$($correlationValue)]"
+        $currentAccount = Get-CurrentPersonalInfo -EmployeeID $($actionContext.Data.Id)
     }
 
-    if ($incompleteConfiguration -eq $true) {
-        throw "Configuration object incomplete, cannot continue."
-    }
+    if ($null -ne $currentAccount) {
+        $action = 'CorrelateAccount'
 
-    # Check if required fields are available for correlation
-    $incompleteCorrelationValues = $false
-    if ([String]::IsNullOrEmpty($correlationProperty)) {
-        $incompleteCorrelationValues = $true
-        Write-Warning "Required correlation field [$correlationProperty] has a null or empty value"
-    }
-    if ([String]::IsNullOrEmpty($correlationValue)) {
-        $incompleteCorrelationValues = $true
-        Write-Warning "Required correlation field [$correlationValue] has a null or empty value"
-    }
-    
-    if ($incompleteCorrelationValues -eq $true) {
-        throw "Correlation values incomplete, cannot continue. CorrelationProperty = [$correlationProperty], CorrelationValue = [$correlationValue]"
-    }
-
-    # Check if required fields are available in account object
-    $incompleteAccount = $false
-    foreach ($requiredAccountField in $requiredAccountFields) {
-        if ($requiredAccountField -notin $account.PsObject.Properties.Name) {
-            $incompleteAccount = $true
-            Write-Warning "Required account object field [$requiredAccountField] is missing"
-        }
-        elseif ([String]::IsNullOrEmpty($account.$requiredAccountField)) {
-            $incompleteAccount = $true
-            Write-Warning "Required account object field [$requiredAccountField] has a null or empty value"
+        $correlatedAccount = @{            
+            Id             = $currentAccount.Id
+            EmployeeNumber = $currentAccount.EmployeeNumber
+            EmailWork      = $currentAccount.EmailWork
         }
     }
-
-    if ($incompleteAccount -eq $true) {
-        throw "Account object incomplete, cannot continue."
+    else {
+        $action = 'CreateAccount'
     }
 
-    # Get current account and verify if it should be either correlated, created or updated and correlated
-    try {
-        Write-Verbose "Querying account where [$($correlationProperty)] = [$($correlationValue)]"
-
-        $currentAccount = $null
-        $currentAccount = Get-CurrentPersonalInfo -EmployeeID $($account.Id)
-
-        if ($null -eq $currentAccount) {
-            if ($($c.createUser) -eq $true) {
-                Write-Verbose "No account found where  [$($correlationProperty)] = [$($correlationValue)] and no account will be created with this connector!"
-                $auditLogs.Add([PSCustomObject]@{
-                        # Action  = "" # Optional
-                        Message = "No account found where [$($correlationProperty)] = [$($correlationValue)] and no account will be created with this connector!"
-                        IsError = $true
-                    })
-            }            
+    # Process
+    switch ($action) {
+        'CreateAccount' {
+            Write-Information "No account found where  [$($correlationField)] = [$($correlationValue)] and no account will be created with this connector!"                
+            throw "No account found where [$($correlationField)] = [$($correlationValue)] and no account will be created with this connector!"            
         }
-        else {
-            # Create previous account object to compare current data with specified account data
-            $previousAccount = [PSCustomObject]@{                
-                EmailWork = $currentAccount.EmailWork #Field to update                
-            }
 
-            if ($($c.updateOnCorrelate) -eq $true) {
-                $action = "Update"
+        'CorrelateAccount' {
+            Write-Information 'Correlating Nmbrs account'
 
-                # Calculate changes between current data and provided data
-                $splatCompareProperties = @{
-                    ReferenceObject  = @($previousAccount.PSObject.Properties)
-                    DifferenceObject = @($account.PSObject.Properties | Where-Object { $_.Name -in $updateAccountFields }) # Only select the properties to update
-                }
-                
-                $changedProperties = $null
-                $changedProperties = (Compare-Object @splatCompareProperties -PassThru)
-                $oldProperties = $changedProperties.Where( { $_.SideIndicator -eq "<=" })
-                $newProperties = $changedProperties.Where( { $_.SideIndicator -eq "=>" })
-    
-                if (($changedProperties | Measure-Object).Count -ge 1) {
-                    # Create custom object with old and new values
-                    $changedPropertiesObject = [PSCustomObject]@{
-                        OldValues = @{}
-                        NewValues = @{}
-                    }
-
-                    # Add the old properties to the custom object with old and new values
-                    foreach ($oldProperty in $oldProperties) {
-                        $changedPropertiesObject.OldValues.$($oldProperty.Name) = $oldProperty.Value
-                    }
-
-                    # Add the new properties to the custom object with old and new values
-                    foreach ($newProperty in $newProperties) {
-                        $changedPropertiesObject.NewValues.$($newProperty.Name) = $newProperty.Value
-                    }
-                    Write-Verbose "Changed properties: $($changedPropertiesObject | ConvertTo-Json)"
-
-                    $updateAction = 'Update'
-                }
-                else {
-                    Write-Verbose "No changed properties"
-                    
-                    $updateAction = 'NoChanges'
-                }
-            }
-            else {
-                $action = 'Correlate'
-            }
-        }
-    }
-    catch {
-        $ex = $PSItem
-        $errorMessage = Get-ErrorMessage -ErrorObject $ex
-
-        Write-Verbose "Error at Line [$($ex.InvocationInfo.ScriptLineNumber)]: $($ex.InvocationInfo.Line). Error: $($errorMessage.VerboseErrorMessage)"
-
-        $auditLogs.Add([PSCustomObject]@{
-                # Action  = "" # Optional
-                Message = "Error querying account where [$($correlationProperty)] = [$($correlationValue)]. Error Message: $($errorMessage.AuditErrorMessage)"
-                IsError = $true
-            })
-
-        # Skip further actions, as this is a critical error
-        continue
-    }
-
-    # Either [create], [update and correlate] or just [correlate]
-    switch ($action) {        
-        "Update" {       
-            switch ($updateAction) {
-                "Update" {
-                    # Update account
-                    try {
-                        # Create custom account object for update and set with default properties and values
-                        $updateAccountObject = @{                            
-                            Id             = $currentAccount.Id             #Mandatory Field within Set-CurrentPerson
-                            Number         = $currentAccount.Number         #Mandatory Field within Set-CurrentPerson
-                            EmployeeNumber = $currentAccount.EmployeeNumber #Mandatory Field within Set-CurrentPerson
-                            LastName       = $currentAccount.LastName       #Mandatory Field within Set-CurrentPerson
-                            EmailWork      = $account.EmailWork             #Field to update
-                            Birthday       = $currentAccount.Birthday       #Mandatory Field within Set-CurrentPerson
-                        }
-
-                        $body = $null
-
-                        foreach ($property in $updateAccountObject.GetEnumerator()) {
-                            $body += "<emp:$($property.Name)>$($property.Value)</emp:$($property.Name)>"
-                        }
-
-                        Write-Verbose "Updating account [$($account.DisplayName) ($($currentAccount.Id))]. Account object: $($updateAccountObject | ConvertTo-Json -Depth 10)"
-                            
-                        if (-not($dryRun -eq $true)) {
-                            $null = Set-CurrentPersonalInfo -EmployeeId $($account.Id) -EmployeeBody $body
-
-                            # Set aRef object for use in futher actions
-                            $aRef = [PSCustomObject]@{
-                                Id = $currentAccount.Id
-                            }
-
-                            $auditLogs.Add([PSCustomObject]@{
-                                    # Action  = "" # Optional
-                                    Message = "Successfully updated account [$($updatedAccount.DisplayName) ($($updatedAccount.Id))]. Updated properties: $($changedPropertiesObject | ConvertTo-Json -Depth 10)"
-                                    IsError = $false
-                                })
-                        }
-                        else {
-                            Write-Warning "DryRun: Would update account [$($account.DisplayName) ($($currentAccount.Id))]. Updated properties: $($changedPropertiesObject | ConvertTo-Json -Depth 10)"
-                        }
-                        break
-                    }
-                    catch {
-                        $ex = $PSItem
-                        $errorMessage = Get-ErrorMessage -ErrorObject $ex
-                    
-                        Write-Verbose "Error at Line [$($ex.InvocationInfo.ScriptLineNumber)]: $($ex.InvocationInfo.Line). Error: $($errorMessage.VerboseErrorMessage)"
-                
-                        $auditLogs.Add([PSCustomObject]@{
-                                # Action  = "" # Optional
-                                Message = "Error updating account [$($account.DisplayName) ($($currentAccount.Id))]. Error Message: $($errorMessage.AuditErrorMessage). Account object: $($updateAccountObject | ConvertTo-Json -Depth 10)"
-                                IsError = $true
-                            })
-                    }
-
-                    break
-                }
-                "NoChanges" {
-                    Write-Verbose "No changes needed for account [$($account.DisplayName) ($($currentAccount.Id))]"
-
-                    if (-not($dryRun -eq $true)) {
-                        # Set aRef object for use in futher actions
-                        $aRef = [PSCustomObject]@{
-                            Id = $currentAccount.Id
-                        }
-
-                        $auditLogs.Add([PSCustomObject]@{
-                                # Action  = "" # Optional
-                                Message = "No changes needed for account [$($account.DisplayName) ($($currentAccount.Id))]"
-                                IsError = $false
-                            })
-                    }
-                    else {
-                        Write-Warning "DryRun: No changes needed for account [$($account.DisplayName) ($($currentAccount.Id))]"
-                    }                  
-
-                    break
-                }
-            }
-
-            # Define ExportData with account fields and correlation property 
-            $exportData = $account.PsObject.Copy() | Select-Object $storeAccountFields
-            # Add correlation property to exportdata
-            $exportData | Add-Member -MemberType NoteProperty -Name $correlationProperty -Value $correlationValue -Force
-            # Add aRef properties to exportdata
-            foreach ($aRefProperty in $aRef.PSObject.Properties) {
-                $exportData | Add-Member -MemberType NoteProperty -Name $aRefProperty.Name -Value $aRefProperty.Value -Force
-            }
-            # Add Nmbrs EmployeeNumber to ExportData
-            $exportData.EmployeeNumber = $currentAccount.EmployeeNumber
-            break
-        }
-        "Correlate" {
-            Write-Verbose "Correlating to account [$($account.DisplayName) ($($currentAccount.Id))]"
-
-            if (-not($dryRun -eq $true)) {
-                # Set aRef object for use in futher actions
-                $aRef = [PSCustomObject]@{
-                    Id = $currentAccount.Id
-                }
-
-                $auditLogs.Add([PSCustomObject]@{
-                        # Action  = "" # Optional
-                        Message = "Successfully correlated to account [$($account.DisplayName) ($($currentAccount.Id))]"
-                        IsError = $false
-                    })
-            }
-            else {
-                Write-Warning "DryRun: Would correlate to account [$($account.DisplayName) ($($currentAccount.Id))]"
-            }
-
-            # Define ExportData with account fields and correlation property 
-            $exportData = $account.PsObject.Copy() | Select-Object $storeAccountFields
-            # Add correlation property to exportdata
-            $exportData | Add-Member -MemberType NoteProperty -Name $correlationProperty -Value $correlationValue -Force
-            # Add aRef properties to exportdata
-            foreach ($aRefProperty in $aRef.PSObject.Properties) {
-                $exportData | Add-Member -MemberType NoteProperty -Name $aRefProperty.Name -Value $aRefProperty.Value -Force
-            }
-            # Add Nmbrs EmployeeNumber to ExportData
-            $exportData.EmployeeNumber = $currentAccount.EmployeeNumber
+            $outputContext.Data = $correlatedAccount
+            $outputContext.AccountReference = $correlatedAccount.Id
+            $outputContext.AccountCorrelated = $true
+            $auditLogMessage = "Correlated account: [$($personContext.Person.DisplayName)] on field: [$($correlationField)] with value: [$($correlationValue)]"
             break
         }
     }
+
+    $outputContext.success = $true
+    $outputContext.AuditLogs.Add([PSCustomObject]@{
+            Action  = $action
+            Message = $auditLogMessage
+            IsError = $false
+        })
 }
-finally {
-    # Check if auditLogs contains errors, if no errors are found, set success to true
-    if (-NOT($auditLogs.IsError -contains $true)) {
-        $success = $true
+catch {
+    $outputContext.success = $false
+    $ex = $PSItem
+    if ($($ex.Exception.GetType().FullName -eq 'Microsoft.PowerShell.Commands.HttpResponseException') -or
+        $($ex.Exception.GetType().FullName -eq 'System.Net.WebException')) {
+        $errorObj = Resolve-NmbrsError -ErrorObject $ex
+        $auditMessage = "Could not create or correlate Nmbrs account. Error: $($errorObj.FriendlyMessage)"
+        Write-Warning "Error at Line '$($errorObj.ScriptLineNumber)': $($errorObj.Line). Error: $($errorObj.ErrorDetails)"
     }
-    
-    # Send results
-    $result = [PSCustomObject]@{
-        Success          = $success
-        AccountReference = $aRef
-        AuditLogs        = $auditLogs
-        PreviousAccount  = $previousAccount
-        Account          = $account
-    
-        # Optionally return data for use in other systems
-        ExportData       = $exportData
+    else {
+        $auditMessage = "Could not create or correlate Nmbrs account. Error: $($ex.Exception.Message)"
+        Write-Warning "Error at Line '$($ex.InvocationInfo.ScriptLineNumber)': $($ex.InvocationInfo.Line). Error: $($ex.Exception.Message)"
     }
-    
-    Write-Output ($result | ConvertTo-Json -Depth 10)  
+    $outputContext.AuditLogs.Add([PSCustomObject]@{
+            Message = $auditMessage
+            IsError = $true
+        })
 }

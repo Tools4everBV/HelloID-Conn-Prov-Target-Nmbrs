@@ -1,0 +1,62 @@
+[
+  {
+    "key": "UserName",
+    "type": "input",
+    "defaultValue": "",
+    "templateOptions": {
+      "label": "UserName",
+      "description": "The UserName to connect to the API",
+      "required": true
+    }
+  },
+  {
+    "key": "Token",
+    "type": "input",
+    "defaultValue": "",
+    "templateOptions": {
+      "label": "Token",
+      "type": "password",
+      "description": "The token to connect to the API",
+      "required": true
+    }
+  },
+  {
+    "key": "Domain",
+    "type": "input",
+    "defaultValue": "",
+    "templateOptions": {
+      "label": "Domain",
+      "description": "The Domain to connect to the API",
+      "required": true
+    }
+  },
+  {
+    "key": "BaseUrl",
+    "type": "input",
+    "defaultValue": "https://api.nmbrs.nl",
+    "templateOptions": {
+      "label": "BaseUrl",
+      "description": "The URL to the API.",
+      "required": true
+    }
+  },
+  {
+    "key": "version",
+    "type": "input",
+    "defaultValue": "v3",
+    "templateOptions": {
+      "label": "API Version",
+      "description": "The version of the API",
+      "required": true
+    }
+  },
+  {
+    "key": "proxyAddress",
+    "type": "input",
+    "defaultValue": "",
+    "templateOptions": {
+      "label": "Proxy address",
+      "required": false
+    }
+  }
+]

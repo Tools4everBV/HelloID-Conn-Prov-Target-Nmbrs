@@ -1,0 +1,41 @@
+{
+  "Version": "v1",
+  "MappingFields": [
+    {
+      "Name": "EmailWork",
+      "Description": "",
+      "Type": "Text",
+      "MappingActions": [
+        {
+          "MapForActions": ["Create", "Update"],
+          "MappingMode": "Complex",
+          "Value": "\"function getValue() {\\n    let emailWork = '';\\n    emailWork = Person.Accounts._a86b8beec20746858bd8507a0a47219f.mail\\n    return emailWork;\\n}\\ngetValue();\"",
+          "UsedInNotifications": false,
+          "StoreInAccountData": false
+        },
+        {
+          "MapForActions": ["Delete"],
+          "MappingMode": "Fixed",
+          "Value": "\"\"",
+          "UsedInNotifications": false,
+          "StoreInAccountData": false
+        }
+      ]
+    },
+    {
+      "Name": "Id",
+      "Description": "",
+      "Type": "Text",
+      "MappingActions": [
+        {
+          "MapForActions": ["Create"],
+          "MappingMode": "Field",
+          "Value": "\"Person.Custom.employeeId\"",
+          "UsedInNotifications": false,
+          "StoreInAccountData": false
+        }
+      ]
+    }
+  ],
+  "UniqueFieldNames": []
+}
