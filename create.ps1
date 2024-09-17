@@ -6,7 +6,7 @@
 # Enable TLS1.2
 [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor [System.Net.SecurityProtocolType]::Tls12
 
-#region functions
+
 # Set debug logging
 switch ($($actionContext.Configuration.isDebug)) {
     $true { $VerbosePreference = "Continue" }
@@ -15,6 +15,7 @@ switch ($($actionContext.Configuration.isDebug)) {
 $InformationPreference = "Continue"
 $WarningPreference = "Continue"
 
+#region functions
 function Resolve-NmbrsError {
     [CmdletBinding()]
     param (
@@ -38,40 +39,6 @@ function Resolve-NmbrsError {
             $httpErrorObj.ErrorMessage = [System.IO.StreamReader]::new($ErrorObject.Exception.Response.GetResponseStream()).ReadToEnd()
         }
         Write-Output $httpErrorObj
-    }
-}
-
-function Get-ErrorMessage {
-    [CmdletBinding()]
-    param (
-        [Parameter(Mandatory,
-            ValueFromPipeline
-        )]
-        [object]$ErrorObject
-    )
-    process {
-        $errorMessage = [PSCustomObject]@{
-            VerboseErrorMessage = $null
-            AuditErrorMessage   = $null
-        }
-
-        if ( $($ErrorObject.Exception.GetType().FullName -eq "Microsoft.PowerShell.Commands.HttpResponseException") -or $($ErrorObject.Exception.GetType().FullName -eq "System.Net.WebException")) {
-            $httpErrorObject = Resolve-NmbrsError -Error $ErrorObject
-
-            $errorMessage.VerboseErrorMessage = $httpErrorObject.ErrorMessage
-
-            $errorMessage.AuditErrorMessage = $httpErrorObject.ErrorMessage
-        }
-
-        # If error message empty, fall back on $ex.Exception.Message
-        if ([String]::IsNullOrEmpty($errorMessage.VerboseErrorMessage)) {
-            $errorMessage.VerboseErrorMessage = $ErrorObject.Exception.Message
-        }
-        if ([String]::IsNullOrEmpty($errorMessage.AuditErrorMessage)) {
-            $errorMessage.AuditErrorMessage = $ErrorObject.Exception.Message
-        }
-
-        Write-Output $errorMessage
     }
 }
 
@@ -151,58 +118,9 @@ function Get-CurrentPersonalInfo {
         Write-Output $response.Envelope.Body.PersonalInfo_GetCurrentResponse.PersonalInfo_GetCurrentResult
     }
     catch {
-        $ex = $PSItem
-        $errorMessage = Get-ErrorMessage -ErrorObject $ex
-
-        Write-Error "Error at Line [$($ex.InvocationInfo.ScriptLineNumber)]: $($ex.InvocationInfo.Line). Error: $($errorMessage.VerboseErrorMessage) [$($ex.ErrorDetails.Message)]"
-                
-        $outputContext.AuditLogs.Add([PSCustomObject]@{
-                Message = "Error updating account [$($account.DisplayName) ($($currentAccount.Id))]. Error Message: $($errorMessage.AuditErrorMessage). Account object: $($updateAccountObject | ConvertTo-Json -Depth 10)"
-                IsError = $true
-            })
-        break
+        Throw $_
     }
 }
-
-function Set-CurrentPersonalInfo {
-    [CmdletBinding()]
-    param (
-        [Parameter(Mandatory)]
-        [string]
-        $EmployeeId,
-
-        [Parameter(Mandatory)]
-        [string]
-        $EmployeeBody
-    )
-
-    $splatParams = @{
-        Uri      = "$($actionContext.Configuration.BaseUrl)/soap/$($actionContext.Configuration.version)/EmployeeService.asmx"
-        Service  = 'EmployeeService'
-        SoapBody = "<emp:PersonalInfo_UpdateCurrent xmlns=`"https://api.nmbrs.nl/soap/$($actionContext.Configuration.version)/EmployeeService`">
-            <emp:EmployeeId>$EmployeeId</emp:EmployeeId>
-            <emp:PersonalInfo>$EmployeeBody</emp:PersonalInfo>
-            </emp:PersonalInfo_UpdateCurrent>"
-    }
-
-    try {
-        [xml]$response = Invoke-NMBRSRestMethod @splatParams
-        Write-Output $response.Envelope.Body.PersonalInfo_UpdateCurrentResponse
-    }
-    catch {
-        $ex = $PSItem
-        $errorMessage = Get-ErrorMessage -ErrorObject $ex
-
-        Write-Error "Error at Line [$($ex.InvocationInfo.ScriptLineNumber)]: $($ex.InvocationInfo.Line). Error: $($errorMessage.VerboseErrorMessage) [$($ex.ErrorDetails.Message)]"
-                
-        $outputContext.AuditLogs.Add([PSCustomObject]@{
-                Message = "Error updating account [$($account.DisplayName) ($($currentAccount.Id))]. Error Message: $($errorMessage.AuditErrorMessage). Account object: $($updateAccountObject | ConvertTo-Json -Depth 10)"
-                IsError = $true
-            })
-        break
-    }
-}
-
 #endregion
 
 try {
@@ -224,6 +142,9 @@ try {
         # Determine if a user needs to be [created] or [correlated]
         Write-Information "Querying account where [$($correlationField)] = [$($correlationValue)]"
         $currentAccount = Get-CurrentPersonalInfo -EmployeeID $($actionContext.Data.Id)
+    }
+    else {
+        Throw "Configuration of correlation is mandatory."
     }
 
     if ($null -ne $currentAccount) {

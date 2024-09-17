@@ -3,13 +3,13 @@
   "MappingFields": [
     {
       "Name": "EmailWork",
-      "Description": "",
+      "Description": "[Mandatory]",
       "Type": "Text",
       "MappingActions": [
         {
           "MapForActions": ["Create", "Update"],
           "MappingMode": "Complex",
-          "Value": "\"function getValue() {\\n    let emailWork = '';\\n    emailWork = Person.Accounts._a86b8beec20746858bd8507a0a47219f.mail\\n    return emailWork;\\n}\\ngetValue();\"",
+          "Value": "\"function getValue() {\\n    let emailWork = '';\\n    emailWork = Person.Accounts.MicrosoftActiveDirectory.mail\\n    return emailWork;\\n}\\ngetValue();\"",
           "UsedInNotifications": false,
           "StoreInAccountData": false
         },
@@ -24,7 +24,7 @@
     },
     {
       "Name": "Id",
-      "Description": "",
+      "Description": "[Mandatory]",
       "Type": "Text",
       "MappingActions": [
         {
@@ -32,7 +32,7 @@
           "MappingMode": "Field",
           "Value": "\"Person.Custom.employeeId\"",
           "UsedInNotifications": false,
-          "StoreInAccountData": false
+          "StoreInAccountData": true
         }
       ]
     }

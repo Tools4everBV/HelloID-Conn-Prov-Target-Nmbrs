@@ -6,6 +6,14 @@
 # Enable TLS1.2
 [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor [System.Net.SecurityProtocolType]::Tls12
 
+# Set debug logging
+switch ($($actionContext.Configuration.isDebug)) {
+    $true { $VerbosePreference = "Continue" }
+    $false { $VerbosePreference = "SilentlyContinue" }
+}
+$InformationPreference = "Continue"
+$WarningPreference = "Continue"
+
 #region functions
 function Resolve-NmbrsError {
     [CmdletBinding()]
@@ -30,40 +38,6 @@ function Resolve-NmbrsError {
             $httpErrorObj.ErrorMessage = [System.IO.StreamReader]::new($ErrorObject.Exception.Response.GetResponseStream()).ReadToEnd()
         }
         Write-Output $httpErrorObj
-    }
-}
-
-function Get-ErrorMessage {
-    [CmdletBinding()]
-    param (
-        [Parameter(Mandatory,
-            ValueFromPipeline
-        )]
-        [object]$ErrorObject
-    )
-    process {
-        $errorMessage = [PSCustomObject]@{
-            VerboseErrorMessage = $null
-            AuditErrorMessage   = $null
-        }
-
-        if ( $($ErrorObject.Exception.GetType().FullName -eq "Microsoft.PowerShell.Commands.HttpResponseException") -or $($ErrorObject.Exception.GetType().FullName -eq "System.Net.WebException")) {
-            $httpErrorObject = Resolve-NmbrsError -Error $ErrorObject
-
-            $errorMessage.VerboseErrorMessage = $httpErrorObject.ErrorMessage
-
-            $errorMessage.AuditErrorMessage = $httpErrorObject.ErrorMessage
-        }
-
-        # If error message empty, fall back on $ex.Exception.Message
-        if ([String]::IsNullOrEmpty($errorMessage.VerboseErrorMessage)) {
-            $errorMessage.VerboseErrorMessage = $ErrorObject.Exception.Message
-        }
-        if ([String]::IsNullOrEmpty($errorMessage.AuditErrorMessage)) {
-            $errorMessage.AuditErrorMessage = $ErrorObject.Exception.Message
-        }
-
-        Write-Output $errorMessage
     }
 }
 
@@ -143,16 +117,7 @@ function Get-CurrentPersonalInfo {
         Write-Output $response.Envelope.Body.PersonalInfo_GetCurrentResponse.PersonalInfo_GetCurrentResult
     }
     catch {
-        $ex = $PSItem
-        $errorMessage = Get-ErrorMessage -ErrorObject $ex
-
-        Write-Error "Error at Line [$($ex.InvocationInfo.ScriptLineNumber)]: $($ex.InvocationInfo.Line). Error: $($errorMessage.VerboseErrorMessage) [$($ex.ErrorDetails.Message)]"
-                
-        $outputContext.AuditLogs.Add([PSCustomObject]@{
-                Message = "Error updating account [$($account.DisplayName) ($($actionContext.References.Account))]. Error Message: $($errorMessage.AuditErrorMessage). Account object: $($deleteAccountObject | ConvertTo-Json -Depth 10)"
-                IsError = $true
-            })
-        break
+        Throw $_
     }
 }
 
@@ -182,17 +147,7 @@ function Set-CurrentPersonalInfo {
         Write-Output $response.Envelope.Body.PersonalInfo_UpdateCurrentResponse
     }
     catch {
-        $ex = $PSItem
-        $errorMessage = Get-ErrorMessage -ErrorObject $ex
-
-        Write-Error "Error at Line [$($ex.InvocationInfo.ScriptLineNumber)]: $($ex.InvocationInfo.Line). Error: $($errorMessage.VerboseErrorMessage) [$($ex.ErrorDetails.Message)]"
-                
-        $outputContext.AuditLogs.Add([PSCustomObject]@{
-                # Action  = "" # Optional
-                Message = "Error updating account [$($personContext.Person.DisplayName) ($($actionContext.References.Account))]. Error Message: $($errorMessage.AuditErrorMessage). Account object: $($deleteAccountObject | ConvertTo-Json -Depth 10)"
-                IsError = $true
-            })
-        break
+        Throw $_
     }
 }
 #endregion
@@ -238,12 +193,12 @@ try {
                 $null = Set-CurrentPersonalInfo -EmployeeId $($correlatedAccount.Id) -EmployeeBody $body
             }
             else {
-                Write-Information "[DryRun] Delete Nmbrs account with accountReference: [$($actionContext.References.Account)], will be executed during enforcement"
+                Write-Information "[DryRun] Would update Nmbrs account with accountReference: [$($actionContext.References.Account)], current EmailWork [$($correlatedAccount.EmailWork)] new EmailWork [$($actionContext.Data.EmailWork)]"
             }
 
             $outputContext.Success = $true
             $outputContext.AuditLogs.Add([PSCustomObject]@{
-                    Message = 'Delete account was successful'
+                    Message = "Update account was successfull, current EmailWork [$($correlatedAccount.EmailWork)] new EmailWork [$($actionContext.Data.EmailWork)]"
                     IsError = $false
                 })
             break
