@@ -1,80 +1,106 @@
 # HelloID-Conn-Prov-Target-Nmbrs
-Repository for HelloID Provisioning Target Connector Nmbrs
 
+> [!IMPORTANT]
+> This repository contains the connector and configuration code only. The implementer is responsible to acquire the connection details such as username, password, certificate, etc. You might even need to sign a contract or agreement with the supplier before implementing this connector. Please contact the client's application manager to coordinate the connector requirements.
 
-| :information_source: Information                                                         |
-| :--------------------------------------------------------------------------------------- |
-| This repository contains the connector and configuration code only. The implementer is responsible to acquire the connection details such as username, password, certificate, etc. You might even need to sign a contract or agreement with the supplier before implementing this connector. Please contact the client's application manager to coordinate the connector requirements.       |
-
-<br /> 
 <p align="center">
-  <img src="https://www.tools4ever.nl/connector-logos/vismanmbrs-logo.png" width="500">
+  <img src="https://github.com/Tools4everBV/HelloID-Conn-Prov-Target-Nmbrs/blob/main/Logo.png?raw=true">
 </p>
 
-## Versioning
-| Version | Description     |
-| ------- | --------------- |
-| 1.0.0   | Initial release |
+## Table of contents
 
-<!-- TABLE OF CONTENTS -->
-## Table of Contents
 - [HelloID-Conn-Prov-Target-Nmbrs](#helloid-conn-prov-target-nmbrs)
-  - [Versioning](#versioning)
-  - [Table of Contents](#table-of-contents)
-  - [Requirements](#requirements)
+  - [Table of contents](#table-of-contents)
   - [Introduction](#introduction)
-  - [Getting Started](#getting-started)
-    - [Application Registration](#application-registration)
-    - [Configuring App Permissions](#configuring-app-permissions)
+  - [Getting started](#getting-started)
+    - [Provisioning PowerShell V2 connector](#provisioning-powershell-v2-connector)
+      - [Correlation configuration](#correlation-configuration)
+      - [Field mapping](#field-mapping)
     - [Connection settings](#connection-settings)
-  - [Remarks](#remarks)
+    - [Prerequisites](#prerequisites)
+    - [Remarks](#remarks)
+  - [Setup the connector](#setup-the-connector)
   - [Getting help](#getting-help)
-  - [HelloID Docs](#helloid-docs)
-
-## Requirements
-There are no specific requirements besides the necessary connection settings.
+  - [HelloID docs](#helloid-docs)
 
 ## Introduction
-_HelloID-Conn-Prov-Target-NMBRS_ is a _target_ connector. NMBRS provides a set of SOAP API's that allow you to programmatically interact with it's data. The HelloID connector uses the API endpoints listed in the table below.
 
-| Endpoint     | Description |
-| ------------ | ----------- |
-| https://api.nmbrs.nl/soap/v3/EmployeeService.asmx? | info regarding persons, contracts and so on           |
+_HelloID-Conn-Prov-Target-Nmbrs_ is a _target_ connector. _Nmbrs_ provides a set of REST API's that allow you to programmatically interact with its data. The HelloID connector uses the API endpoints listed in the table below.
 
+| Endpoint              | Description                                 |
+| --------------------- | ------------------------------------------- |
+| /EmployeeService.asmx | info regarding persons, contracts and so on |
 
-With this connector you can add, update and delete employee information within NMBRS. The current code only provides the possibility to update the business e-mailaddress of an employee.
+The following lifecycle actions are available:
 
-| Action | Action(s) Performed | Comment |
-| ------ | ------------------- | ------- |
-| create.ps1                | Correlate or Correlate-Update employee                                              | Users are only correlated or correlated and updated when this is configured, **make sure to check your configuration options to set the right option**. |
-| update.ps1                | Update account                                                        | Update the e-mailaddress.   |
-| delete.ps1                | Remove account                                                        | Updates the e-mailaddress in NMBRS with an empty value.              |
+| Action             | Description                          |
+| ------------------ | ------------------------------------ |
+| create.ps1         | PowerShell _create_ lifecycle action |
+| delete.ps1         | PowerShell _delete_ lifecycle action |
+| update.ps1         | PowerShell _update_ lifecycle action |
+| configuration.json | Default _configuration.json_         |
+| fieldMapping.json  | Default _fieldMapping.json_          |
 
-## Getting Started
+## Getting started
+
+### Provisioning PowerShell V2 connector
+
+#### Correlation configuration
+
+The correlation configuration is used to specify which properties will be used to match an existing account within _Nmbrs_ to a person in _HelloID_.
+
+To properly setup the correlation:
+
+1. Open the `Correlation` tab.
+
+2. Specify the following configuration:
+
+   | Setting                   | Value                             |
+   | ------------------------- | --------------------------------- |
+   | Enable correlation        | `True`                            |
+   | Person correlation field  | `PersonContext.Person.ExternalId` |
+   | Account correlation field | `Id`                              |
+
+> [!TIP] 
+> _For more information on correlation, please refer to our correlation [documentation](https://docs.helloid.com/en/provisioning/target-systems/powershell-v2-target-systems/correlation.html) pages_.
+
+#### Field mapping
+
+The field mapping can be imported by using the _fieldMapping.json_ file.
 
 ### Connection settings
+
 The following settings are required to connect to the API.
 
-| Setting      | Description                        | Mandatory   |
-| ------------ | -----------                        | ----------- |
-| UserName     | The UserName to connect to the API | Yes         |
-| Token        | The token to connect to the API | Yes         |
-| Domain      | The Domain [mydomain.nmbrs.nl] to connect to the API                | Yes         |
-| BaseUrl | The URL to the API.[https://api.nmbrs.nl] | Yes |
-| Version | The version of the API [v3]               | Yes |
-| CompanyId | The companyId for which the employees will be imported | Yes |
-|proxyAddress| The addres of the proxy  |No |
-|IsDebug | When toggled, debug logging will be displayed |
-| updateOnCorrelate | When toggled, employee will be updated on correlation | 
+| Setting      | Description                                          | Mandatory |
+| ------------ | ---------------------------------------------------- | --------- |
+| UserName     | The UserName to connect to the API                   | Yes       |
+| Token        | The token to connect to the API                      | Yes       |
+| Domain       | The Domain [mydomain.nmbrs.nl] to connect to the API | Yes       |
+| BaseUrl      | The URL to the API.[https://api.nmbrs.nl]            | Yes       |
+| Version      | The version of the API [v3]                          | Yes       |
+| proxyAddress | The address of the proxy                             | No        |
 
+### Prerequisites
 
-## Remarks
+There are no specific requirements besides the necessary connection settings.
+
+### Remarks
+
 Some fields are mandatory to provide to the NMBRS api to perform updates. The value for these fields will be used from the employee data which is returned from the NMBRS api when looking up the employee.
 
+## Setup the connector
+
+> _How to setup the connector in HelloID._ Are special settings required. Like the _primary manager_ settings for a source connector.
+
 ## Getting help
-> _For more information on how to configure a HelloID PowerShell connector, please refer to our [documentation](https://docs.helloid.com/hc/en-us/articles/360012518799-How-to-add-a-target-system) pages_
 
-> _If you need help, feel free to ask questions on our [forum](https://forum.helloid.com/forum/helloid-connectors/provisioning/4928-helloid-conn-prov-target-nmbrs)_
+> [!TIP] 
+> _For more information on how to configure a HelloID PowerShell connector, please refer to our [documentation](https://docs.helloid.com/en/provisioning/target-systems/powershell-v2-target-systems.html) pages_.
 
-## HelloID Docs
+> [!TIP] 
+> _If you need help, feel free to ask questions on our [forum](https://forum.helloid.com/forum/helloid-connectors/provisioning/4928-helloid-conn-prov-target-nmbrs)_.
+
+## HelloID docs
+
 The official HelloID documentation can be found at: https://docs.helloid.com/
