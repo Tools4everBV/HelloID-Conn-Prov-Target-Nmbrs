@@ -210,7 +210,7 @@ try {
                 Write-Information "[DryRun] Would update Nmbrs account with accountReference: [$($actionContext.References.Account)], current EmailWork [$($correlatedAccount.EmailWork)] new EmailWork [$($actionContext.Data.EmailWork)]"
             }
 
-            $outputContext.Data.id = $correlatedAccount.Id
+            $outputContext.AccountReference = $correlatedAccount.Id
             $outputContext.Success = $true
             $outputContext.AuditLogs.Add([PSCustomObject]@{
                     Message = "Update account was successfull, current EmailWork [$($correlatedAccount.EmailWork)] new EmailWork [$($actionContext.Data.EmailWork)]"
@@ -222,7 +222,7 @@ try {
         'NoChanges' {
             Write-Information "No changes to Nmbrs account with accountReference: [$($actionContext.References.Account)]"
 
-            $outputContext.Data.id = $correlatedAccount.Id
+            $outputContext.AccountReference = $correlatedAccount.Id
             $outputContext.Success = $true
             $outputContext.AuditLogs.Add([PSCustomObject]@{
                     Message = 'No changes will be made to the account during enforcement'
