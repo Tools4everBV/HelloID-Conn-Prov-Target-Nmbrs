@@ -1,52 +1,84 @@
 [
   {
-    "key": "UserName",
-    "type": "input",
-    "defaultValue": "",
-    "templateOptions": {
-      "label": "UserName",
-      "description": "The UserName to connect to the API",
-      "required": true
-    }
-  },
-  {
-    "key": "Token",
-    "type": "input",
-    "defaultValue": "",
-    "templateOptions": {
-      "label": "Token",
-      "type": "password",
-      "description": "The token to connect to the API",
-      "required": true
-    }
-  },
-  {
-    "key": "Domain",
-    "type": "input",
-    "defaultValue": "",
-    "templateOptions": {
-      "label": "Domain",
-      "description": "The Domain to connect to the API",
-      "required": true
-    }
-  },
-  {
     "key": "BaseUrl",
     "type": "input",
-    "defaultValue": "https://api.nmbrs.nl",
+    "defaultValue": "https://api.nmbrsapp.com/api",
     "templateOptions": {
       "label": "BaseUrl",
-      "description": "The URL to the API.",
+      "description": "The URL to the API. Typically, this will be https://api.nmbrsapp.com/api",
       "required": true
     }
   },
   {
-    "key": "version",
+    "key": "TokenUrl",
     "type": "input",
-    "defaultValue": "v3",
+    "defaultValue": "https://identityservice.nmbrs.com/connect/token",
     "templateOptions": {
-      "label": "API Version",
-      "description": "The version of the API",
+      "label": "Token URL",
+      "description": "The URL to obtain the API token. Typically, this will be https://identityservice.nmbrs.com/connect/token",
+      "required": true
+    }
+  },
+  {
+    "key": "TokenHost",
+    "type": "input",
+    "defaultValue": "identityservice.nmbrs.com",
+    "templateOptions": {
+      "label": "Token Host DNS Name",
+      "description": "The DNS name of the host to obtain the API token. Typically, this will be identityservice.nmbrs.com",
+      "required": true
+    }
+  },
+  {
+    "key": "Client_id",
+    "type": "input",
+    "defaultValue": "",
+    "templateOptions": {
+      "label": "Client ID",
+      "description": "The client ID of the app definition in the Nmbrs partner portal",
+      "required": true
+    }
+  },
+  {
+    "key": "Client_secret",
+    "type": "input",
+    "defaultValue": "",
+    "templateOptions": {
+      "label": "Client secret",
+      "type": "password",
+      "description": "The client secret of the app definition in the Nmbrs partner portal",
+      "required": true
+    }
+  },
+  {
+    "key": "SubscriptionKey",
+    "type": "input",
+    "defaultValue": "",
+    "templateOptions": {
+      "label": "Subscription Key",
+      "type": "password",
+      "description": "The subscription key (Primary Key) of the Nmbrs API subscription",
+      "required": true
+    }
+  },
+  {
+    "key": "RefreshToken",
+    "type": "input",
+    "defaultValue": "",
+    "templateOptions": {
+      "label": "Initial RefreshToken",
+      "type": "password",
+      "description": "The initial refresh token, generated with GetRefreshTokenFromAuthorisationCode.ps1. Used when the token file does not exist yet or contains an invalid token.",
+      "required": true
+    }
+  },
+  {
+    "key": "RefreshTokenSaveFile",
+    "type": "input",
+    "defaultValue": "",
+    "templateOptions": {
+      "label": "Refresh Token Save File",
+      "description": "Full path of the file on the HelloID agent server where the (encrypted) tokens are saved, e.g. C:\\HelloID\\Nmbrs\\target_token.json. Do not use the same file as the Nmbrs source connector.",
       "required": true
     }
   },
@@ -56,6 +88,17 @@
     "defaultValue": "",
     "templateOptions": {
       "label": "Proxy address",
+      "description": "The address of the proxy, e.g. http://proxy.domain.local:8080",
+      "required": false
+    }
+  },
+  {
+    "key": "isDebug",
+    "type": "checkbox",
+    "defaultValue": false,
+    "templateOptions": {
+      "label": "Toggle debug logging",
+      "description": "When toggled, debug logging will be displayed",
       "required": false
     }
   }
